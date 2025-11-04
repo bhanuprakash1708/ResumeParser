@@ -1,0 +1,59 @@
+# Location: /docker/docker-compose.yml
+
+services:
+  # The FastAPI Web Server
+  api:
+    build:
+      context: ..  # Look for Dockerfile in parent directory (root)
+      dockerfile: docker/Dockerfile # Path to the Dockerfile
+    container_name: resume_parser_api
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ../src:/app/src
+      - ../uploads:/app/uploads
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis  # <-- API now also depends on redis
+    env_file:
+      - ../.env
+
+  # The PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: resume_parser_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    env_file:
+      - ../.env
+
+  # The Redis Message Broker (Queue)
+  redis:
+    image: redis:7-alpine
+    container_name: resume_parser_redis
+    ports:
+      - "6379:6379" # So we can see it if we need to
+
+  # The Celery Background Worker
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: resume_parser_worker
+    # This runs the Celery command INSTEAD of uvicorn
+    command: celery -A src.worker.celery_app.celery_app worker --loglevel=info
+    volumes:
+      - ../src:/app/src
+      - ../uploads:/app/uploads # Needs access to the files
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - ../.env
+
+volumes:
+  postgres_data:
+    # This creates a persistent volume for our database
