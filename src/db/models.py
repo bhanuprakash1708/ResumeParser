@@ -15,8 +15,9 @@ class Resume(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     file_name = Column(String(255), nullable=False)
     file_size = Column(Integer, nullable=False)
-    file_type = Column(String(50), nullable=False)
+    file_type = Column(String(255), nullable=False)
     file_hash = Column(String(128), unique=True, nullable=False)
+    file_path = Column(String(512), nullable=True)
     
     uploaded_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     processed_at = Column(TIMESTAMP(timezone=True), nullable=True)

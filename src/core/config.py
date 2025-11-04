@@ -24,9 +24,12 @@ class Settings(BaseSettings):
             f"{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
 
-    # --- ADDED THESE LINES ---
     CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
     CELERY_RESULT_BACKEND: str = os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
+
+    # --- THIS IS THE LINE THAT WAS MISSING ---
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+
 
 # Create a single instance of the settings to be imported by other files
 settings = Settings()

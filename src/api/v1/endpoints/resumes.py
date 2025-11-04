@@ -8,9 +8,11 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlalchemy.orm import Session
 from src.db.session import get_db
 from src.db.models import Resume
-
-# --- IMPORT OUR NEW TASK ---
 from src.worker.tasks import parse_resume_task 
+
+# --- IMPORT OUR NEW RESPONSE MODELS ---
+from src.api.v1.schemas import ResumeDataResponse, ResumeMetadata
+# ------------------------------------
 
 router = APIRouter()
 
@@ -90,7 +92,12 @@ async def upload_resume(
     # --- 3. Save the file to disk using its new ID ---
     # We save *after* creating the DB entry so we can use the ID
     try:
-        save_upload_file(file, new_resume.id)
+        saved_file_path = save_upload_file(file, new_resume.id)
+        
+        # --- Store the path in the DB ---
+        new_resume.file_path = saved_file_path 
+        db.commit() # Save this new path
+        
     except Exception as e:
         print(f"Error saving file: {e}")
         new_resume.processing_status = "failed"
@@ -109,6 +116,63 @@ async def upload_resume(
         "message": "Resume uploaded successfully, queued for processing.",
         "estimatedProcessingTime": 30 # Placeholder
     }
+
+# --- THIS IS THE NEW ENDPOINT ---
+@router.get("/{id}", response_model=ResumeDataResponse)
+async def get_parsed_resume(
+    id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Retrieve the full, structured JSON data for a processed resume.
+    """
+    try:
+        resume_uuid = uuid.UUID(id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid resume ID format.")
+
+    resume = db.query(Resume).filter(Resume.id == resume_uuid).first()
+    
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+        
+    if resume.processing_status != "completed":
+        raise HTTPException(
+            status_code=202, # 202 "Accepted" is a good code for "not ready yet"
+            detail=f"Resume processing is not complete. Current status: {resume.processing_status}"
+        )
+
+    # --- Build the response model ---
+    # FastAPI will automatically validate this against our schema.
+    
+    # Get the structured data (which is a dict) from the DB
+    ai_data = resume.structured_data or {}
+
+    # Build the metadata
+    metadata = ResumeMetadata(
+        fileName=resume.file_name,
+        fileSize=resume.file_size,
+        uploadedAt=resume.uploaded_at,
+        processedAt=resume.processed_at,
+        processingTime=(resume.processed_at - resume.uploaded_at).total_seconds() if resume.processed_at else None
+    )
+
+    # Use the `get` method on the dict to safely get keys that might not exist
+    response_data = ResumeDataResponse(
+        id=resume.id,
+        metadata=metadata,
+        personalInfo=ai_data.get("personalInfo"),
+        summary=ai_data.get("summary"),
+        experience=ai_data.get("experience"),
+        education=ai_data.get("education"),
+        skills=ai_data.get("skills"),
+        certifications=ai_data.get("certifications"),
+        aiEnhancements=ai_data.get("aiEnhancements") # This will be null for now
+    )
+    
+    return response_data
+# -----------------------------------
+
 
 @router.get("/{id}/status")
 async def get_resume_status(

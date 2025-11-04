@@ -10,10 +10,12 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-# 4. Install system dependencies (like build-essential for some python packages)
-# We will add more here later, like 'tesseract-ocr' for OCR
+# 4. Install system dependencies
+# --- WE ARE ADDING tesseract-ocr and poppler-utils ---
 RUN apt-get update && apt-get install -y \
     build-essential \
+    tesseract-ocr \
+    poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # 5. Install Python dependencies
@@ -25,5 +27,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY ./src /app/src
 
 # 7. Expose the port the app will run on
-# (This is good practice, though docker-compose handles the main mapping)
 EXPOSE 8000

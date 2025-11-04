@@ -17,10 +17,15 @@ python-dotenv
 # --- Async HTTP Client (for calling LLMs later) ---
 httpx
 
-# --- Document Processing (We'll add more later) ---
+# --- Document Processing ---
 python-docx
 pdfplumber
 
-# --- Background Jobs (Crucial for performance) ---
+# --- Background Jobs ---
 celery
 redis
+
+# --- AI / ML ---
+google-generativeai
+pytesseract
+pdf2image
