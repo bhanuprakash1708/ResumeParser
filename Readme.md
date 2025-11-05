@@ -170,21 +170,6 @@ Response Example:
 }
 ```
 ---
-## 🗄️ Database Schema
-
-Table: resumes
-
-Column Name	Type	Description
-id	SERIAL PRIMARY KEY	Unique resume ID
-name	VARCHAR(255)	Candidate name
-email	VARCHAR(255)	Candidate email
-phone	VARCHAR(20)	Contact number
-skills	TEXT[]	List of skills
-education	TEXT	Education details
-experience	TEXT	Work experience
-created_at	TIMESTAMP	Record creation time
-
----
 
 ## 🐳 Running with Docker
 1️⃣ Build Containers
