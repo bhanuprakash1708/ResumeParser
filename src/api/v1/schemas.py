@@ -1,12 +1,13 @@
 # Location: /src/api/v1/schemas.py
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Any, Dict
 from datetime import datetime
 import uuid
 
-# --- Pydantic models for the GET /resumes/{id} response ---
-# These match the "Parsed Data Retrieval" section of the spec
+# -------------------------------------------------
+# 1. SCHEMAS FOR THE 'GET /resumes/{id}' RESPONSE
+# -------------------------------------------------
 
 class ResumeMetadata(BaseModel):
     fileName: str
@@ -90,6 +91,7 @@ class AIEnhancements(BaseModel):
     completenessScore: Optional[int] = None
     suggestions: Optional[List[str]] = []
     industryFit: Optional[Dict[str, float]] = {}
+    careerProgressionAnalysis: Optional[str] = None
 
 class ResumeDataResponse(BaseModel):
     """
@@ -105,5 +107,173 @@ class ResumeDataResponse(BaseModel):
     certifications: Optional[List[Certification]] = []
     aiEnhancements: Optional[AIEnhancements] = None
 
-    class Config:
-        from_attributes = True # Replaces orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+# -------------------------------------------------
+# 2. SCHEMAS FOR THE 'POST /resumes/{id}/match' ENDPOINT
+# -------------------------------------------------
+
+# --- JOB DESCRIPTION (INPUT) ---
+
+class JobExperience(BaseModel):
+    minimum: Optional[int] = None
+    preferred: Optional[int] = None
+    level: Optional[str] = None
+
+class JobRequirements(BaseModel):
+    required: Optional[List[str]] = []
+    preferred: Optional[List[str]] = []
+
+class JobSkills(BaseModel):
+    required: Optional[List[str]] = []
+    preferred: Optional[List[str]] = []
+
+class JobSalary(BaseModel):
+    min: Optional[int] = None
+    max: Optional[int] = None
+    currency: Optional[str] = None
+
+class JobDescription(BaseModel):
+    title: Optional[str] = None
+    company: Optional[str] = None
+    location: Optional[str] = None
+    type: Optional[str] = None
+    experience: Optional[JobExperience] = None
+    description: Optional[str] = None
+    requirements: Optional[JobRequirements] = None
+    skills: Optional[JobSkills] = None
+    salary: Optional[JobSalary] = None
+    benefits: Optional[List[str]] = []
+    industry: Optional[str] = None
+
+class MatchOptions(BaseModel):
+    includeExplanation: bool = True
+    detailedBreakdown: bool = True
+    suggestImprovements: bool = True
+
+class MatchRequest(BaseModel):
+    jobDescription: JobDescription
+    options: Optional[MatchOptions] = None
+
+
+# --- MATCH RESPONSE (OUTPUT) ---
+# --- THIS IS THE FULLY-CORRECTED, EXPLICIT SCHEMA ---
+
+class SkillsMatchDetails_Details(BaseModel):
+    requiredSkillsMatched: int
+    totalRequiredSkills: int
+    preferredSkillsMatched: int
+    totalPreferredSkills: int
+    matchedSkills: List[str]
+    missingRequired: List[str]
+    missingPreferred: List[str]
+
+class SkillsMatchDetails(BaseModel):
+    score: int
+    weight: int
+    details: SkillsMatchDetails_Details
+
+class ExperienceMatchDetails_Details(BaseModel):
+    candidateExperience: float
+    requiredExperience: int
+    preferredExperience: int
+    levelMatch: str
+    industryMatch: bool
+
+class ExperienceMatchDetails(BaseModel):
+    score: int
+    weight: int
+    details: ExperienceMatchDetails_Details
+
+class EducationMatchDetails_Details(BaseModel):
+    meetsRequirements: bool
+    exceedsRequirements: bool
+    fieldRelevance: str
+    institutionPrestige: str
+
+class EducationMatchDetails(BaseModel):
+    score: int
+    weight: int
+    details: EducationMatchDetails_Details
+
+class RoleAlignmentDetails_Details(BaseModel):
+    titleSimilarity: float
+    responsibilityOverlap: float
+    careerProgression: str
+
+class RoleAlignmentDetails(BaseModel):
+    score: int
+    weight: int
+    details: RoleAlignmentDetails_Details
+
+class LocationMatchDetails_Details(BaseModel):
+    currentLocation: str
+    jobLocation: str
+    relocationRequired: bool
+
+class LocationMatchDetails(BaseModel):
+    score: int
+    weight: int
+    details: LocationMatchDetails_Details
+
+class CategoryScores(BaseModel):
+    skillsMatch: SkillsMatchDetails
+    experienceMatch: ExperienceMatchDetails
+    educationMatch: EducationMatchDetails
+    roleAlignment: RoleAlignmentDetails
+    locationMatch: LocationMatchDetails
+
+class GapAnalysisItem(BaseModel):
+    category: str
+    missing: Any
+    impact: str
+    suggestion: str
+
+class GapAnalysis(BaseModel):
+    criticalGaps: List[GapAnalysisItem]
+    improvementAreas: List[GapAnalysisItem]
+
+class SalaryAlignment(BaseModel):
+    candidateExpectation: str
+    jobSalaryRange: str
+    marketRate: str
+    alignment: str
+
+class MatchingResults(BaseModel):
+    overallScore: int
+    confidence: float
+    recommendation: str
+    categoryScores: CategoryScores
+    strengthAreas: List[str]
+    gapAnalysis: GapAnalysis # <-- Was Dict, now a proper schema
+    salaryAlignment: SalaryAlignment
+    competitiveAdvantages: List[str]
+
+class MatchExplanation(BaseModel):
+    summary: str
+    keyFactors: List[str]
+    recommendations: List[str]
+
+class ConfidenceFactors(BaseModel):
+    dataCompleteness: float
+    skillExtraction: float
+    experienceAccuracy: float
+
+class MatchMetadata(BaseModel):
+    matchedAt: datetime
+    processingTime: float
+    algorithm: str
+    confidenceFactors: ConfidenceFactors 
+
+class MatchResponse(BaseModel):
+    """
+    This is the *full response body* for the POST /match endpoint.
+    """
+    matchId: uuid.UUID = Field(default_factory=uuid.uuid4)
+    resumeId: uuid.UUID
+    jobTitle: str
+    company: str
+    matchingResults: MatchingResults
+    explanation: MatchExplanation
+    metadata: MatchMetadata

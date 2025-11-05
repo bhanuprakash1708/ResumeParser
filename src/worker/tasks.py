@@ -27,56 +27,33 @@ from src.db.session import SessionLocal
 from src.db.models import Resume
 
 # --- IMPORT THE PYDANTIC SCHEMAS ---
-from pydantic import BaseModel
-from src.api.v1.schemas import (
-    PersonalInfo, Summary, Experience, Education, Skills, Certification, 
-    AIEnhancements
-)
-
-# --- DEFINE THE AI's REQUIRED OUTPUT STRUCTURE ---
-# --- THIS IS THE CRITICAL FIX ---
-# We remove all "Optional" and "default=None" from this *internal*
-# class. This makes the schema strict and fixes the Gemini API crash.
-class AI_ParsedData(BaseModel):
-    """
-    This is the precise Pydantic model we will force the AI to generate.
-    All fields are now *required* by the AI.
-    """
-    personalInfo: PersonalInfo
-    summary: Summary
-    experience: List[Experience]
-    education: List[Education]
-    skills: Skills
-    certifications: List[Certification]
-    aiEnhancements: AIEnhancements
-
+# We ONLY need BaseModel here now
+from pydantic import BaseModel 
+# ---------------------------------
 
 # --- CONFIGURE THE GEMINI CLIENT ---
 try:
     if settings.GEMINI_API_KEY:
         genai.configure(api_key=settings.GEMINI_API_KEY)
         
-        gemini_model = genai.GenerativeModel(
-            'gemini-2.5-pro', 
-            generation_config=genai_types.GenerationConfig(
-                response_mime_type="application/json",
-                response_schema=AI_ParsedData, # <-- It now uses the strict class
-                temperature=0.1
-            )
-        )
+        # --- THIS IS THE FIX ---
+        # We are removing the complex generation_config that was
+        # crashing the app. We will just initialize the model.
+        gemini_model = genai.GenerativeModel('gemini-2.5-pro')
+        # ---------------------------------
         
-        print("--- Gemini FLASH model configured successfully (with Structured Output) ---")
+        print("--- Gemini PRO model configured successfully ---")
     else:
         print("!!! WARNING: GEMINI_API_KEY is not set. AI extraction will be skipped. !!!")
         gemini_model = None
 except Exception as e:
-    # The "Unknown field: default" error will no longer happen
     print(f"!!! CRITICAL: FAILED TO CONFIGURE GEMINI API. {e} !!!")
     gemini_model = None
 
 # --- HELPER FUNCTIONS (UNCHANGED) ---
 
 def ocr_pdf(file_path: str) -> str:
+    """Extracts text from a scanned/image-based PDF using Tesseract OCR."""
     print(f"Running OCR on PDF: {file_path}")
     try:
         images = convert_from_path(file_path, poppler_path=None)
@@ -90,6 +67,7 @@ def ocr_pdf(file_path: str) -> str:
         raise
 
 def parse_pdf(file_path: str) -> str:
+    """Tries fast text extraction first, then falls back to slow OCR."""
     print(f"Parsing PDF: {file_path}")
     text = ""
     try:
@@ -139,6 +117,9 @@ def parse_txt(file_path: str) -> str:
         raise
 
 def parse_image(file_path: str) -> str:
+    """
+    Extracts text from a single image file (JPG, PNG) using Tesseract OCR.
+    """
     print(f"Running OCR on Image: {file_path}")
     try:
         img = Image.open(file_path)
@@ -152,6 +133,91 @@ def parse_image(file_path: str) -> str:
 # --- AI PROMPT ENGINEERING ---
 
 def get_gemini_extraction_prompt(raw_text: str) -> str:
+    """
+    Creates the master prompt to send to the Gemini API.
+    """
+    
+    # --- THIS IS THE FIX ---
+    # We put the full, detailed JSON template *back into the prompt*.
+    # This is the most reliable way to get the format we want.
+    json_format_template = """
+    {
+      "personalInfo": {
+        "name": { "first": "John", "last": "Doe", "full": "John Doe" },
+        "contact": {
+          "email": "john.doe@example.com",
+          "phone": "+1-555-123-4567",
+          "address": { "city": "San Francisco", "state": "CA", "country": "USA" },
+          "linkedin": "https.linkedin.com/in/johndoe"
+        }
+      },
+      "summary": {
+        "text": "Experienced software engineer with 5+ years...",
+        "careerLevel": "mid-level"
+      },
+      "experience": [
+        {
+          "title": "Senior Software Engineer",
+          "company": "Tech Corp",
+          "location": "San Francisco, CA",
+          "startDate": "2021-03-01",
+          "endDate": "2025-09-01",
+          "description": "Led development of microservices...",
+          "technologies": ["Python", "Docker", "AWS"]
+        }
+      ],
+      "education": [
+        {
+          "degree": "Bachelor of Science",
+          "field": "Computer Science",
+          "institution": "University of California, Berkeley",
+          "graduationDate": "2018-05-15"
+        }
+      ],
+      "skills": {
+        "technical": [
+          {
+            "category": "Programming Languages",
+            "items": ["Python", "JavaScript", "Java", "Go"]
+          },
+          {
+            "category": "Frameworks",
+            "items": ["Django", "React", "Node.js"]
+          }
+        ],
+        "soft": ["Leadership", "Communication", "Problem Solving"],
+        "languages": [
+          {
+            "language": "English",
+            "proficiency": "Native"
+          }
+        ]
+      },
+      "certifications": [
+         {
+           "name": "AWS Certified Solutions Architect",
+           "issuer": "Amazon Web Services",
+           "issueDate": "2023-06-15"
+         }
+      ],
+      "aiEnhancements": {
+        "qualityScore": 87,
+        "completenessScore": 92,
+        "suggestions": [
+          "Add quantifiable achievements to work experience",
+          "Include relevant technical certifications"
+        ],
+        "industryFit": {
+          "software_engineering": 0.95,
+          "data_science": 0.45,
+          "product_management": 0.25
+        },
+        "careerProgressionAnalysis": "Candidate shows fast career growth; ready for senior role."
+      }
+    }
+    """
+    
+    # The prompt instructs the AI for both extraction and analysis
     prompt = f"""
     You are an expert **AI HR Analyst and Senior Resume Parser**. 
     
@@ -165,12 +231,20 @@ def get_gemini_extraction_prompt(raw_text: str) -> str:
        - **industryFit:** Classify the candidate into 3 relevant industries (e.g., 'software_engineering', 'data_science') and provide a confidence score (0.0 to 1.0).
        - **careerProgressionAnalysis:** Briefly analyze the candidate's job history and offer one sentence of insight.
 
+    You MUST return the output *only* as a single, valid JSON object following the JSON FORMAT TEMPLATE.
+    Do not include any text, markdown (like ```json), or explanations before or after the JSON block.
+    
+    JSON FORMAT TEMPLATE:
+    {json_format_template}
+    
     ---
     RESUME TEXT TO PARSE:
     {raw_text}
     ---
     
-    Now, analyze the resume and provide the full response.
+    Now, parse the resume text and provide the output in the requested JSON format.
+    Fill the fields accurately based on the candidate's content.
+    If a field is not found, return null or an empty list [].
     """
     return prompt
 
@@ -179,6 +253,11 @@ def get_gemini_extraction_prompt(raw_text: str) -> str:
 
 @celery_app.task
 def parse_resume_task(resume_id_str: str):
+    """
+    This background task now does:
+    1. Text extraction (PDF, DOCX, TXT, Images)
+    2. AI-powered JSON parsing (using Gemini Pro)
+    """
     print(f"--- [TASK_STARTED] for resume_id: {resume_id_str} ---")
     db = SessionLocal()
     file_name = "Unknown" 
@@ -216,12 +295,12 @@ def parse_resume_task(resume_id_str: str):
         
         resume.raw_text = raw_text
         
-        # --- STEP B: AI JSON EXTRACTION (NOW WITH STRUCTURED OUTPUT) ---
+        # --- STEP B: AI JSON EXTRACTION (Simplified Call) ---
         if not gemini_model:
             print("!!! WARNING: Gemini model not configured. Skipping AI extraction. !!!")
             extracted_json = {"error": "AI model not configured."}
         else:
-            print(f"Sending {len(raw_text)} chars to Gemini FLASH for extraction...")
+            print(f"Sending {len(raw_text)} chars to Gemini PRO for extraction...")
             
             if len(raw_text.strip()) < 10:
                 print("[TASK_WARNING] Skipping AI call due to empty extracted text.")
@@ -229,6 +308,10 @@ def parse_resume_task(resume_id_str: str):
             else:
                 extraction_prompt = get_gemini_extraction_prompt(raw_text)
                 
+                # --- FIX 6: Simplified API call config ---
+                generation_config = genai_types.GenerationConfig(
+                    temperature=0.1 
+                )
                 safety_settings = [
                     {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
                     {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -238,10 +321,11 @@ def parse_resume_task(resume_id_str: str):
                 
                 response = gemini_model.generate_content(
                     contents=extraction_prompt,
+                    generation_config=generation_config, # Pass config here
                     safety_settings=safety_settings
                 )
                 
-                ai_response_text = response.text
+                ai_response_text = response.text.strip().replace("```json", "").replace("```", "")
                 extracted_json = json.loads(ai_response_text)
                 
                 print("--- [AI_SUCCESS] Gemini extraction complete ---")

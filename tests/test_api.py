@@ -5,7 +5,7 @@ import pytest_asyncio
 import httpx
 import io
 from fastapi import status
-import time # <--- NEW IMPORT
+import time
 
 # ... (pytestmark and BASE_URL are unchanged) ...
 pytestmark = pytest.mark.asyncio
