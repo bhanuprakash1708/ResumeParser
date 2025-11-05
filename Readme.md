@@ -47,7 +47,7 @@ It uses **FastAPI** for backend APIs and integrates with **AI models (Gemini API
 | **Backend** | FastAPI (Python) |
 | **Database** | PostgreSQL |
 | **ORM** | SQLAlchemy |
-| **AI Integration** | Gemini API (planned) |
+| **AI Integration** | Gemini API |
 | **Containerization** | Docker & Docker Compose |
 | **Frontend (optional)** | React.js (future) |
 
