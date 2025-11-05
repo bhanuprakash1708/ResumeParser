@@ -8,6 +8,18 @@ The entire system is containerized with **Docker** for one-command setup and dep
 
 ---
 
+## Project Documentaion & Test Walkthrough
+```bash
+https://docs.google.com/document/d/1KPKhS36GDSsyG8A5lRmLcb15LSeg11D1/edit?usp=sharing&ouid=104083747354714194741&rtpof=true&sd=true
+```
+Resume Used
+```bash
+https://drive.google.com/file/d/1cT-61-73FdIPDPrqyFB7zLml0x72b6Tg/view?usp=sharing
+```
+
+
+---
+
 ## 📘 Table of Contents
 1. [Project Overview](#project-overview)
 2. [Features](#features)
