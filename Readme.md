@@ -78,7 +78,7 @@ It uses **FastAPI** for backend APIs and integrates with **AI models (Gemini API
 
 ### 1️⃣ Clone the Repository
 ```bash
-git clone https://github.com/your-username/resume-parser-hackathon.git
+git clone https://github.com/gouravez/resume-parser-hackathon.git
 cd resume-parser-hackathon
 ```
 ### 2️⃣ Create a Virtual Environment
