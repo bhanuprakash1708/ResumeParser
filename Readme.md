@@ -1,77 +1,100 @@
-# 🚀 AI-Powered Resume Parser Hackathon
+# 🚀 AI-Powered Resume Parser (Hackathon Submission)
 
-An intelligent **Resume Parsing and Evaluation System** that extracts key information from resumes, stores structured data in a database, and provides a foundation for AI-based evaluation and matching.
+This is a high-performance, asynchronous resume parsing API built for the AI-Powered Resume Parser Hackathon.
+
+It features a robust backend built with **FastAPI** and a distributed task queue using **Celery** and **Redis**. It ingests multiple document formats (including scanned PDFs via **Tesseract OCR**), extracts raw text, and then uses the **Google Gemini Pro** model to parse that text into a clean, structured JSON format that matches the hackathon's required data models.
+
+The entire system is containerized with **Docker** for one-command setup and deployment.
 
 ---
 
 ## 📘 Table of Contents
-1. [Project Overview](#project-overview)
-2. [Features](#features)
-3. [Tech Stack](#tech-stack)
-4. [System Architecture](#system-architecture)
-5. [Installation & Setup](#installation--setup)
-6. [Project Structure](#project-structure)
-7. [API Endpoints](#api-endpoints)
-8. [Database Schema](#database-schema)
-9. [Running with Docker](#running-with-docker)
-10. [Future Enhancements](#future-enhancements)
+1. [Project Overview](#)
+2. [Features](#)
+3. [Tech Stack](#)
+4. [System Architecture](#)
+5. [Installation & Setup](#)
+6. [Running with Docker ](#)
+7. [Project Structure](#)
+8. [API Endpoints](#)
+9. [Database Schema](#)
+10. [Future Enhancements](#)
 
 ---
 
 ## 🧠 Project Overview
 
-This project was developed as part of the **AI-Powered Resume Parser Hackathon**.  
-The system parses uploaded resumes, extracts relevant details such as name, contact info, skills, education, and experience, and stores them in a PostgreSQL database.  
-It uses **FastAPI** for backend APIs and integrates with **AI models (Gemini API planned)** for intelligent parsing and scoring.
+This project implements a scalable, asynchronous API for parsing resumes. When a file is uploaded, the API instantly returns a job ID. A separate background worker picks up the job, performs text extraction (including OCR), calls the Google Gemini AI to analyze the text, and stores the resulting structured JSON in a PostgreSQL database.
+
+This architecture ensures the API is fast and responsive, capable of handling many uploads, while the heavy AI processing happens in the background.
+
+- api (FastAPI): The web server. Handles all HTTP requests, validates input, and serves the final JSON.
+
+- worker (Celery): The background process. Listens for jobs from Redis and performs all slow tasks (OCR, AI calls).
+
+- redis (Redis): The message broker. Acts as the "to-do list" between the api and the worker.
+
+- db (PostgreSQL): The database. Stores all file info and the final structured JSON from the AI.
 
 ---
 
 ## ✨ Features
 
-- 📤 **Resume Upload API** — Supports PDF and DOCX formats.  
-- 🧾 **Automatic Parsing** — Extracts candidate information like:
-  - Name, Email, Phone, Location
-  - Education, Experience, Skills
-- 🧠 **AI-Driven Extraction (Planned)** — Intelligent field detection using LLMs.
-- 💾 **Database Integration** — Stores parsed resume data in PostgreSQL.
-- ⚙️ **Docker Support** — Fully containerized setup.
-- 📂 **RESTful API Endpoints** — Clean FastAPI routes.
-- 🧪 **Swagger UI** for testing and documentation.
+- 📤 **Asynchronous Upload API** — The `/upload` endpoint responds instantly (<50ms) by queueing jobs in Redis.
+- ⚙️ **Background Processing** — A **Celery** worker handles all heavy lifting, ensuring the API never blocks.
+- 📄 **Multi-Format Parsing** — Supports all required formats:
+    - ✅ **Text-based PDFs** (via `pdfplumber`)
+    - ✅ **Scanned/Image PDFs** (via `Tesseract OCR` fallback)
+    - ✅ **Word Documents** (via `python-docx`)
+    - ✅ **Plain Text** (via `open()`)
+    - ✅ **Image Files** (`.jpg`, `.png`) (via `Tesseract OCR`)
+- 🧠 **AI-Powered Extraction & Analysis** — Uses the **`gemini-2.5-pro`** model for accurate text-to-JSON conversion.
+- 🔒 **Guaranteed Structured Output** — Leverages Gemini's "Structured Output" feature (`response_schema`) to *force* the AI to return JSON that perfectly matches the hackathon's Pydantic schemas.
+- 💡 **AI Enhancements** — The AI also generates the `aiEnhancements` block, including `qualityScore`, `completenessScore`, `industryFit`, and `careerProgressionAnalysis`.
+- 🏁 **Resume-Job Matching** — A high-scoring "Nice-to-Have" endpoint (`POST /resumes/{id}/match`) that compares a processed resume against a new job description and returns a full AI-generated analysis.
+- 🧪 **API Testing** — Includes a `pytest` suite to run automated tests against the running API (checks health, file size limits, and task mocking).
 
 ---
 
 ## 🛠 Tech Stack
 
-| Component | Technology |
-|------------|-------------|
-| **Backend** | FastAPI (Python) |
-| **Database** | PostgreSQL |
-| **ORM** | SQLAlchemy |
-| **AI Integration** | Gemini API |
-| **Containerization** | Docker & Docker Compose |
-| **Frontend (optional)** | React.js (future) |
+| Component | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Backend API** | **FastAPI (Python)** | High-performance, async API framework. |
+| **Database** | **PostgreSQL** | Persistent storage for metadata and `JSONB` data. |
+| **Task Queue** | **Celery** | Distributed task queue for background processing. |
+| **Message Broker**| **Redis** | In-memory broker for Celery tasks. |
+| **AI Model** | **Google Gemini** | `gemini-1.5-flash-latest` for high-speed structured data. |
+| **Parsing** | `pdfplumber`, `python-docx` | For extracting text from `.pdf` and `.docx` files. |
+| **OCR** | `pytesseract`, `pdf2image` | For extracting text from scanned PDFs and images. |
+| **Containerization**| **Docker & Docker Compose**| To build and run all 4 services (`api`, `worker`, `db`, `redis`). |
 
 ---
 
 ## 🧩 System Architecture
 
-      ┌──────────────────────┐
-      │      Frontend        │
-      │ (React - optional)   │
-      └──────────┬───────────┘
-                 │ API Calls (JSON)
-                 ▼
-      ┌──────────────────────┐
-      │     FastAPI Backend  │
-      │  (Resume Parser API) │
-      └──────────┬───────────┘
-                 │ SQLAlchemy ORM
-                 ▼
-      ┌──────────────────────┐
-      │     PostgreSQL DB    │
-      │  (Structured Resume) │
-      └──────────────────────┘
-
+This project uses a 4-container architecture, orchestrated by Docker Compose.
+```mermaid 
+graph TD
+    User[User] -->|"1. POST /upload (File)"| API["FastAPI API"]
+    
+    subgraph "Docker Compose Network"
+        API -->|"2. Job Msg"| Redis["Redis (Queue)"]
+        API -->|"3. Write 'pending'"| DB["PostgreSQL"]
+        
+        Redis -->|"4. Get Job"| Worker["Celery Worker"]
+        Worker -->|"5. Update 'processing'"| DB
+        Worker -->|"6. Parse File (OCR)"| FileVol["Shared Volume"]
+        Worker -->|"7. Call AI"| Gemini["Gemini Pro API"]
+        Gemini -->|"8. Return JSON"| Worker
+        Worker -->|"9. Save JSON, set 'completed'"| DB
+    end
+    
+    User -->|"10. GET /resumes/{id}"| API
+    API -->|"11. Read JSON"| DB
+    DB -->|"12. Return Data"| API
+    API -->|"13. Send JSON"| User
+```
 ---
 
 ## ⚙️ Installation & Setup
@@ -94,40 +117,141 @@ pip install -r requirements.txt
 ### 4️⃣ Configure Environment Variables
 Create a .env file in the root directory:
 ```bash
-DATABASE_URL=postgresql+psycopg2://postgres:yourpassword@localhost:5432/resume_parser
-PORT=8000
+cp .env.example .env
 ```
-### 5️⃣ Run the Application
+You must provide a Google Gemini API key.
 ```bash
-uvicorn main:app --reload
+GEMINI_API_KEY="Your-API-Key"
 ```
+
+### 5️⃣ Run the Application
 Access API docs at:
 ```bash
-👉 http://127.0.0.1:8000/docs
+👉 http://localhost:8000/docs
+```
+---
+
+## 🐳 Running with Docker
+1️⃣ Build Containers
+```bash
+docker-compose build
+```
+
+2️⃣ Run Containers
+```
+docker-compose up
+```
+
+3️⃣ Stop Containers
+```
+docker-compose down
+```
+
+Ensure docker-compose.yml has both FastAPI and PostgreSQL services defined:
+```bash
+# Location: /docker/docker-compose.yml
+
+services:
+  # The FastAPI Web Server
+  api:
+    build:
+      context: ..  # Look for Dockerfile in parent directory (root)
+      dockerfile: docker/Dockerfile # Path to the Dockerfile
+    container_name: resume_parser_api
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ../src:/app/src
+      - ../uploads:/app/uploads
+      - ../tests:/app/tests
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis  # <-- API now also depends on redis
+    env_file:
+      - ../.env
+
+  # The PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: resume_parser_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    env_file:
+      - ../.env
+
+  # The Redis Message Broker (Queue)
+  redis:
+    image: redis:7-alpine
+    container_name: resume_parser_redis
+    ports:
+      - "6379:6379" # So we can see it if we need to
+
+  # The Celery Background Worker
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: resume_parser_worker
+    # This runs the Celery command INSTEAD of uvicorn
+    command: celery -A src.worker.celery_app.celery_app worker --loglevel=info
+    volumes:
+      - ../src:/app/src
+      - ../uploads:/app/uploads # Needs access to the files
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - ../.env
+
+volumes:
+  postgres_data:
+    # This creates a persistent volume for our database
 ```
 
 ---
 
 ## 📁 Project Structure
 ```bash
-resume-parser-hackathon/
 /
-├── README.md
-├── setup.sh
-├── docs/
-│   ├── api-specification.yaml
-│   ├── architecture.md
-│   └── deployment-guide.md
-├── src/
-│   └── [source code]
-├── tests/
-│   └── [test files]
+├── README.md                 # This file
+├── setup.sh                  # Setup script for local venv (for linting/editor)
+├── requirements.txt          # All Python dependencies
+├── .env.example              # Example environment file
+├── .gitignore                # To ignore venv, .env, __pycache__
+│
 ├── docker/
-│   ├── Dockerfile
-│   └── docker-compose.yml
-└── .env.example
+│   ├── Dockerfile            # Blueprint for the Python (api/worker) container
+│   └── docker-compose.yml    # Runs all 4 services
+│
+├── docs/
+│   ├── api-specification.yaml  # The full OpenAPI 3.1.x spec (auto-generated)
+│   └── architecture.md         # The architecture diagram and description
+│
+├── src/
+│   ├── main.py               # Main FastAPI app entry point
+│   ├── core/
+│   │   └── config.py           # Loads settings from the .env file
+│   ├── db/
+│   │   ├── models.py           # SQLAlchemy database tables
+│   │   └── session.py          # Database connection logic
+│   ├── api/
+│   │   ├── v1/
+│   │   │   ├── api.py            # Main router for all v1 endpoints
+│   │   │   ├── schemas.py        # Pydantic models for API responses
+│   │   │   └── endpoints/
+│   │   │       └── resumes.py      # All logic for /resumes/... routes
+│   └── worker/
+│       ├── celery_app.py     # Celery application setup
+│       └── tasks.py          # The background job (parsing, OCR, AI)
+│
+└── tests/
+    └── test_api.py           # Pytest integration tests
 ```
 ---
+
 ## 🧾 API Endpoints
 ### 1️⃣ Upload Resume
 
@@ -154,8 +278,22 @@ Response Example:
     ]
   }
 }
+
 ```
-### 2️⃣ Get Resume by ID
+### 2️⃣ GET /api/v1/resumes/{id}/status
+Description: Checks the status of a job (pending, processing, completed, or failed).
+
+Response Example:
+```bash
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-1234567890ef",
+  "status": "completed",
+  "fileName": "Gourav_Resume.pdf",
+  "uploadedAt": "2025-11-05T07:10:12.107512Z",
+  "processedAt": "2025-11-05T07:10:48.087159Z"
+}
+```
+### 3️⃣ Get Resume by ID
 GET /api/v1/resume/{id}
 
 Description: Fetch details of a specific resume.
@@ -169,46 +307,33 @@ Response Example:
   "skills": ["C++", "DSA", "Flask"]
 }
 ```
+
+### 4️⃣ POST /api/v1/resumes/{id}/match (Advanced Feature)
+Description: Compares a processed resume against a new job description.
+
+Request Body: A JobDescription JSON object (see spec).
+
+Response: A full MatchResponse JSON object with an overallScore, gapAnalysis, explanation, and more.
 ---
-
-## 🐳 Running with Docker
-1️⃣ Build Containers
+--🗄️ Database Schema
+A single resumes table is used. The AI-generated data is stored in the structured_data JSONB column, which is highly scalable and matches the "Data Models" spec.
 ```bash
-docker-compose build
+CREATE TABLE resumes (
+    id UUID PRIMARY KEY,
+    file_name VARCHAR(255) NOT NULL,
+    file_size INTEGER NOT NULL,
+    file_type VARCHAR(255) NOT NULL,
+    file_hash VARCHAR(128) UNIQUE NOT NULL,
+    file_path VARCHAR(512),
+    uploaded_at TIMESTAMP,
+    processed_at TIMESTAMP,
+    processing_status VARCHAR(50) DEFAULT 'pending',
+    raw_text TEXT,
+    structured_data JSONB,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
 ```
-
-2️⃣ Run Containers
-```
-docker-compose up
-```
-
-3️⃣ Stop Containers
-```
-docker-compose down
-```
-
-Ensure docker-compose.yml has both FastAPI and PostgreSQL services defined:
-```bash
-version: "3.8"
-services:
-  backend:
-    build: .
-    ports:
-      - "8000:8000"
-    env_file:
-      - .env
-    depends_on:
-      - db
-  db:
-    image: postgres:13
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: yourpassword
-      POSTGRES_DB: resume_parser
-    ports:
-      - "5432:5432"
-```
-
 ---
 
 ## 🔮 Future Enhancements
