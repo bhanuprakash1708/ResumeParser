@@ -9,16 +9,16 @@ The entire system is containerized with **Docker** for one-command setup and dep
 ---
 
 ## 📘 Table of Contents
-1. [Project Overview](#)
-2. [Features](#)
-3. [Tech Stack](#)
-4. [System Architecture](#)
-5. [Installation & Setup](#)
-6. [Running with Docker ](#)
-7. [Project Structure](#)
-8. [API Endpoints](#)
-9. [Database Schema](#)
-10. [Future Enhancements](#)
+1. [Project Overview](#project-overview)
+2. [Features](#features)
+3. [Tech Stack](#tech-stack)
+4. [System Architecture](#system-architecture)
+5. [Installation & Setup](#installation--setup)
+6. [Running with Docker](#running-with-docker)
+7. [Project Structure](#project-structure)
+8. [API Endpoints](#api-endpoints)
+9. [Database Schema](#database-schema)
+10. [Future Enhancements](#future-enhancements)
 
 ---
 
