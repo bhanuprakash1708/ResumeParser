@@ -314,6 +314,7 @@ Description: Compares a processed resume against a new job description.
 Request Body: A JobDescription JSON object (see spec).
 
 Response: A full MatchResponse JSON object with an overallScore, gapAnalysis, explanation, and more.
+
 ---
 --🗄️ Database Schema
 A single resumes table is used. The AI-generated data is stored in the structured_data JSONB column, which is highly scalable and matches the "Data Models" spec.
