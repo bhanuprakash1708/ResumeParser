@@ -15,7 +15,6 @@ An intelligent **Resume Parsing and Evaluation System** that extracts key inform
 8. [Database Schema](#database-schema)
 9. [Running with Docker](#running-with-docker)
 10. [Future Enhancements](#future-enhancements)
-11. [Contributors](#contributors)
 
 ---
 
