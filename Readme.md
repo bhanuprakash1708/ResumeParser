@@ -109,7 +109,7 @@ Access API docs at:
 
 ---
 
-📁 Project Structure
+## 📁 Project Structure
 ```bash
 resume-parser-hackathon/
 /
@@ -129,8 +129,8 @@ resume-parser-hackathon/
 └── .env.example
 ```
 ---
-🧾 API Endpoints
-1️⃣ Upload Resume
+## 🧾 API Endpoints
+### 1️⃣ Upload Resume
 
 POST /api/v1/resume/upload
 
@@ -156,7 +156,7 @@ Response Example:
   }
 }
 ```
-2️⃣ Get Resume by ID
+### 2️⃣ Get Resume by ID
 GET /api/v1/resume/{id}
 
 Description: Fetch details of a specific resume.
@@ -171,7 +171,7 @@ Response Example:
 }
 ```
 ---
-🗄️ Database Schema
+## 🗄️ Database Schema
 
 Table: resumes
 
@@ -187,7 +187,7 @@ created_at	TIMESTAMP	Record creation time
 
 ---
 
-🐳 Running with Docker
+## 🐳 Running with Docker
 1️⃣ Build Containers
 ```bash
 docker-compose build
@@ -227,7 +227,7 @@ services:
 
 ---
 
-🔮 Future Enhancements
+## 🔮 Future Enhancements
 
 🤖 AI Scoring Engine — Use Gemini API to evaluate resumes based on role requirements.
 
