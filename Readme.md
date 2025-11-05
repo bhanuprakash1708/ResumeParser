@@ -112,27 +112,21 @@ Access API docs at:
 📁 Project Structure
 ```bash
 resume-parser-hackathon/
-│
-├── app/
-│   ├── main.py                # FastAPI entry point
-│   ├── routers/
-│   │   ├── resume.py          # Resume upload & parse endpoints
-│   ├── models/
-│   │   ├── resume_model.py    # SQLAlchemy model for Resume
-│   ├── schemas/
-│   │   ├── resume_schema.py   # Pydantic validation schema
-│   ├── core/
-│   │   ├── database.py        # PostgreSQL connection
-│   │   ├── config.py          # Environment config
-│   ├── utils/
-│   │   ├── parser.py          # Resume parsing logic
-│   ├── __init__.py
-│
-├── Dockerfile
-├── docker-compose.yml
-├── requirements.txt
-├── .env
-└── README.md
+/
+├── README.md
+├── setup.sh
+├── docs/
+│   ├── api-specification.yaml
+│   ├── architecture.md
+│   └── deployment-guide.md
+├── src/
+│   └── [source code]
+├── tests/
+│   └── [test files]
+├── docker/
+│   ├── Dockerfile
+│   └── docker-compose.yml
+└── .env.example
 ```
 ---
 🧾 API Endpoints
@@ -162,7 +156,7 @@ Response Example:
   }
 }
 ```
-3️⃣ Get Resume by ID
+2️⃣ Get Resume by ID
 GET /api/v1/resume/{id}
 
 Description: Fetch details of a specific resume.
@@ -176,6 +170,7 @@ Response Example:
   "skills": ["C++", "DSA", "Flask"]
 }
 ```
+---
 🗄️ Database Schema
 
 Table: resumes
