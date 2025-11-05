@@ -106,6 +106,9 @@ Access API docs at:
 ```bash
 👉 http://127.0.0.1:8000/docs
 ```
+
+---
+
 📁 Project Structure
 ```bash
 resume-parser-hackathon/
@@ -131,6 +134,7 @@ resume-parser-hackathon/
 ├── .env
 └── README.md
 ```
+---
 🧾 API Endpoints
 1️⃣ Upload Resume
 
@@ -186,6 +190,7 @@ education	TEXT	Education details
 experience	TEXT	Work experience
 created_at	TIMESTAMP	Record creation time
 
+---
 
 🐳 Running with Docker
 1️⃣ Build Containers
@@ -224,6 +229,8 @@ services:
     ports:
       - "5432:5432"
 ```
+
+---
 
 🔮 Future Enhancements
 
