@@ -11,7 +11,6 @@ ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
 # 4. Install system dependencies
-# --- WE ARE ADDING tesseract-ocr and poppler-utils ---
 RUN apt-get update && apt-get install -y \
     build-essential \
     tesseract-ocr \
@@ -19,12 +18,15 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # 5. Install Python dependencies
-# We copy *only* the requirements file first to leverage Docker's cache
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 6. Copy our application's source code into the container
+# 6. Copy our application source code
 COPY ./src /app/src
 
-# 7. Expose the port the app will run on
+# 7. Copy the tests folder into the container
+COPY ./tests /app/tests
+# ---------------------------
+
+# 8. Expose the port the app will run on
 EXPOSE 8000

@@ -5,16 +5,18 @@ import datetime
 import uuid
 import os
 import json
+from typing import List, Dict, Optional # <-- This is correct
 
 # --- AI IMPORTS ---
 import google.generativeai as genai
+from google.generativeai import types as genai_types
 from src.core.config import settings
 
 # --- PARSING LIBRARIES ---
 import pdfplumber 
 import docx
 
-# --- NEW OCR IMPORTS ---
+# --- OCR IMPORTS ---
 import pytesseract
 from pdf2image import convert_from_path
 from PIL import Image
@@ -24,28 +26,57 @@ from src.worker.celery_app import celery_app
 from src.db.session import SessionLocal
 from src.db.models import Resume
 
+# --- IMPORT THE PYDANTIC SCHEMAS ---
+from pydantic import BaseModel
+from src.api.v1.schemas import (
+    PersonalInfo, Summary, Experience, Education, Skills, Certification, 
+    AIEnhancements
+)
+
+# --- DEFINE THE AI's REQUIRED OUTPUT STRUCTURE ---
+# --- THIS IS THE CRITICAL FIX ---
+# We remove all "Optional" and "default=None" from this *internal*
+# class. This makes the schema strict and fixes the Gemini API crash.
+class AI_ParsedData(BaseModel):
+    """
+    This is the precise Pydantic model we will force the AI to generate.
+    All fields are now *required* by the AI.
+    """
+    personalInfo: PersonalInfo
+    summary: Summary
+    experience: List[Experience]
+    education: List[Education]
+    skills: Skills
+    certifications: List[Certification]
+    aiEnhancements: AIEnhancements
+
+
 # --- CONFIGURE THE GEMINI CLIENT ---
 try:
     if settings.GEMINI_API_KEY:
         genai.configure(api_key=settings.GEMINI_API_KEY)
         
-        # This is the model name you verified:
-        gemini_model = genai.GenerativeModel('gemini-2.5-pro')
+        gemini_model = genai.GenerativeModel(
+            'gemini-2.5-pro', 
+            generation_config=genai_types.GenerationConfig(
+                response_mime_type="application/json",
+                response_schema=AI_ParsedData, # <-- It now uses the strict class
+                temperature=0.1
+            )
+        )
         
-        print("--- Gemini Pro model configured successfully ---")
+        print("--- Gemini FLASH model configured successfully (with Structured Output) ---")
     else:
         print("!!! WARNING: GEMINI_API_KEY is not set. AI extraction will be skipped. !!!")
         gemini_model = None
 except Exception as e:
+    # The "Unknown field: default" error will no longer happen
     print(f"!!! CRITICAL: FAILED TO CONFIGURE GEMINI API. {e} !!!")
     gemini_model = None
 
-# --- HELPER FUNCTIONS (WITH OCR) ---
+# --- HELPER FUNCTIONS (UNCHANGED) ---
 
 def ocr_pdf(file_path: str) -> str:
-    """
-    Extracts text from a scanned/image-based PDF using Tesseract OCR.
-    """
     print(f"Running OCR on PDF: {file_path}")
     try:
         images = convert_from_path(file_path, poppler_path=None)
@@ -59,19 +90,13 @@ def ocr_pdf(file_path: str) -> str:
         raise
 
 def parse_pdf(file_path: str) -> str:
-    """
-    Extracts text from a PDF file.
-    Tries fast text extraction first, then falls back to slow OCR.
-    """
     print(f"Parsing PDF: {file_path}")
     text = ""
     try:
-        # 1. Try fast text-based extraction
         with pdfplumber.open(file_path) as pdf:
             for page in pdf.pages:
                 text += page.extract_text() or ""
         
-        # 2. If it's empty, it's a scanned PDF. Fallback to OCR.
         if len(text.strip()) < 10: 
             print("No text found. Assuming scanned PDF. Falling back to OCR...")
             text = ocr_pdf(file_path)
@@ -113,95 +138,39 @@ def parse_txt(file_path: str) -> str:
         print(f"Error parsing TXT: {e}")
         raise
 
+def parse_image(file_path: str) -> str:
+    print(f"Running OCR on Image: {file_path}")
+    try:
+        img = Image.open(file_path)
+        full_text = pytesseract.image_to_string(img) + "\n"
+        print(f"Image OCR extraction successful, {len(full_text)} chars.")
+        return full_text
+    except Exception as e:
+        print(f"Error during Image OCR: {e}")
+        raise
+
 # --- AI PROMPT ENGINEERING ---
 
 def get_gemini_extraction_prompt(raw_text: str) -> str:
-    """
-    Creates the master prompt to send to the Gemini API.
-    This is the most important part of the AI logic.
-    """
-    
-    # --- THIS IS THE FIX ---
-    # This template now *perfectly* matches your schemas.py file
-    json_format_template = """
-    {
-      "personalInfo": {
-        "name": { "first": "John", "last": "Doe", "full": "John Doe" },
-        "contact": {
-          "email": "john.doe@example.com",
-          "phone": "+1-555-123-4567",
-          "address": { "city": "San Francisco", "state": "CA", "country": "USA" },
-          "linkedin": "https.linkedin.com/in/johndoe"
-        }
-      },
-      "summary": {
-        "text": "Experienced software engineer with 5+ years...",
-        "careerLevel": "mid-level"
-      },
-      "experience": [
-        {
-          "title": "Senior Software Engineer",
-          "company": "Tech Corp",
-          "location": "San Francisco, CA",
-          "startDate": "2021-03-01",
-          "endDate": "2025-09-01",
-          "description": "Led development of microservices...",
-          "technologies": ["Python", "Docker", "AWS"]
-        }
-      ],
-      "education": [
-        {
-          "degree": "Bachelor of Science",
-          "field": "Computer Science",
-          "institution": "University of California, Berkeley",
-          "graduationDate": "2018-05-15"
-        }
-      ],
-      "skills": {
-        "technical": [
-          {
-            "category": "Programming Languages",
-            "items": ["Python", "JavaScript", "Java", "Go"]
-          },
-          {
-            "category": "Frameworks",
-            "items": ["Django", "React", "Node.js"]
-          }
-        ],
-        "soft": ["Leadership", "Communication", "Problem Solving"],
-        "languages": [
-          {
-            "language": "English",
-            "proficiency": "Native"
-          }
-        ]
-      },
-      "certifications": [
-         {
-           "name": "AWS Certified Solutions Architect",
-           "issuer": "Amazon Web Services",
-           "issueDate": "2023-06-15"
-         }
-      ]
-    }
-    """
-    
-    # The prompt tells the AI what to do
     prompt = f"""
-    You are an expert AI resume parser. Your task is to analyze the following resume text and extract the key information.
-    You MUST return the output *only* as a single, valid JSON object.
-    Do not include any text, markdown (like ```json), or explanations before or after the JSON block.
+    You are an expert **AI HR Analyst and Senior Resume Parser**. 
     
-    JSON FORMAT TEMPLATE:
-    {json_format_template}
-    
+    Your task is not just to extract text, but to provide a comprehensive analysis.
+
+    **INSTRUCTIONS:**
+    1. **Extraction (Mandatory):** Accurately extract all structured data from the resume text.
+    2. **Analysis (Mandatory):** Fill the 'aiEnhancements' block completely, using logical deduction.
+       - **qualityScore:** Judge the resume on a scale of 0-100 based on completeness and professionalism.
+       - **completenessScore:** Calculate the percentage of core fields (Name, Email, 1 Experience, 1 Education) that were successfully extracted.
+       - **industryFit:** Classify the candidate into 3 relevant industries (e.g., 'software_engineering', 'data_science') and provide a confidence score (0.0 to 1.0).
+       - **careerProgressionAnalysis:** Briefly analyze the candidate's job history and offer one sentence of insight.
+
     ---
     RESUME TEXT TO PARSE:
     {raw_text}
     ---
     
-    Now, parse the resume text and provide the output in the requested JSON format.
-    If a field is not found, return null or an empty list [].
+    Now, analyze the resume and provide the full response.
     """
     return prompt
 
@@ -210,11 +179,6 @@ def get_gemini_extraction_prompt(raw_text: str) -> str:
 
 @celery_app.task
 def parse_resume_task(resume_id_str: str):
-    """
-    This background task now does:
-    1. Text extraction (PDF, DOCX, TXT)
-    2. AI-powered JSON parsing (using Gemini Pro)
-    """
     print(f"--- [TASK_STARTED] for resume_id: {resume_id_str} ---")
     db = SessionLocal()
     file_name = "Unknown" 
@@ -245,17 +209,19 @@ def parse_resume_task(resume_id_str: str):
             raw_text = parse_docx(resume.file_path)
         elif 'text' in file_type:
             raw_text = parse_txt(resume.file_path)
+        elif 'jpeg' in file_type or 'png' in file_type:
+            raw_text = parse_image(resume.file_path)
         else:
             raise Exception(f"Unsupported file type: {file_type}")
         
         resume.raw_text = raw_text
         
-        # --- STEP B: AI JSON EXTRACTION ---
+        # --- STEP B: AI JSON EXTRACTION (NOW WITH STRUCTURED OUTPUT) ---
         if not gemini_model:
             print("!!! WARNING: Gemini model not configured. Skipping AI extraction. !!!")
             extracted_json = {"error": "AI model not configured."}
         else:
-            print(f"Sending {len(raw_text)} chars to Gemini Pro for extraction...")
+            print(f"Sending {len(raw_text)} chars to Gemini FLASH for extraction...")
             
             if len(raw_text.strip()) < 10:
                 print("[TASK_WARNING] Skipping AI call due to empty extracted text.")
@@ -263,27 +229,19 @@ def parse_resume_task(resume_id_str: str):
             else:
                 extraction_prompt = get_gemini_extraction_prompt(raw_text)
                 
-                # Set safety settings to be less restrictive
-                generation_config = genai.types.GenerationConfig(
-                    temperature=0.1 
-                )
                 safety_settings = [
                     {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
                     {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
                     {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-                    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold":"BLOCK_NONE"},
                 ]
-
+                
                 response = gemini_model.generate_content(
-                    extraction_prompt,
-                    generation_config=generation_config,
+                    contents=extraction_prompt,
                     safety_settings=safety_settings
                 )
                 
-                # Clean the response - AI sometimes wraps output in ```json ... ```
-                ai_response_text = response.text.strip().replace("```json", "").replace("```", "")
-                
-                # Convert the text response to a real JSON object
+                ai_response_text = response.text
                 extracted_json = json.loads(ai_response_text)
                 
                 print("--- [AI_SUCCESS] Gemini extraction complete ---")
@@ -291,7 +249,7 @@ def parse_resume_task(resume_id_str: str):
         # --- STEP C: SAVE RESULTS ---
         resume.processing_status = "completed"
         resume.processed_at = datetime.datetime.now(datetime.timezone.utc)
-        resume.structured_data = extracted_json # <-- STORE THE AI's JSON
+        resume.structured_data = extracted_json 
         db.commit()
         
         print(f"--- [TASK_COMPLETED] for {resume.file_name} ---")

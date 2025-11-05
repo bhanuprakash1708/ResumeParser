@@ -14,7 +14,7 @@ alembic
 pydantic-settings
 python-dotenv
 
-# --- Async HTTP Client (for calling LLMs later) ---
+# --- Async HTTP Client ---
 httpx
 
 # --- Document Processing ---
@@ -29,3 +29,8 @@ redis
 google-generativeai
 pytesseract
 pdf2image
+
+# --- TESTING ---
+pytest
+pytest-asyncio
+pytest-mock
