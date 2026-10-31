@@ -9,18 +9,25 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Dict, Any, Optional
+from dotenv import load_dotenv
 
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER = os.getenv("SMTP_USER", "")
-SMTP_PASS = os.getenv("SMTP_PASS", "")
-SENDER_EMAIL = os.getenv("SENDER_EMAIL", "noreply@resumeparser.ai")
-RECRUITER_EMAIL = os.getenv("RECRUITER_EMAIL", "recruiter@example.com")
+# Ensure environment is freshly loaded
+load_dotenv(override=True)
+
+def get_smtp_config():
+    user = os.getenv("SMTP_USER", "").strip()
+    pwd = os.getenv("SMTP_PASS", "").replace(" ", "").strip()
+    host = os.getenv("SMTP_HOST", "smtp.gmail.com").strip()
+    port = int(os.getenv("SMTP_PORT", "587"))
+    sender = os.getenv("SENDER_EMAIL", user or "noreply@resumeparser.ai").strip()
+    recruiter = os.getenv("RECRUITER_EMAIL", user or "recruiter@example.com").strip()
+    return host, port, user, pwd, sender, recruiter
 
 
 def is_mock_mode() -> bool:
     """Returns True if SMTP credentials are missing, triggering safe simulation mode."""
-    return not (SMTP_USER and SMTP_PASS)
+    _, _, user, pwd, _, _ = get_smtp_config()
+    return not (user and pwd)
 
 
 def send_email_notification(to_email: str, subject: str, html_content: str) -> bool:
@@ -28,7 +35,9 @@ def send_email_notification(to_email: str, subject: str, html_content: str) -> b
     Sends an HTML email notification. Logs gracefully in mock/development mode
     if SMTP credentials are not configured.
     """
-    if is_mock_mode():
+    host, port, user, pwd, sender, _ = get_smtp_config()
+
+    if not user or not pwd:
         print(f"[NOTIFIER MOCK] Email would be sent to: {to_email}")
         print(f"[NOTIFIER MOCK] Subject: {subject}")
         print(f"[NOTIFIER MOCK] Preview: {html_content[:150]}...")
@@ -37,16 +46,17 @@ def send_email_notification(to_email: str, subject: str, html_content: str) -> b
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
-        msg["From"] = SENDER_EMAIL
+        msg["From"] = sender
         msg["To"] = to_email
 
         part = MIMEText(html_content, "html")
         msg.attach(part)
 
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        print(f"[NOTIFIER] Connecting to {host}:{port} as {user}...")
+        with smtplib.SMTP(host, port, timeout=15) as server:
             server.starttls()
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(SENDER_EMAIL, to_email, msg.as_string())
+            server.login(user, pwd)
+            server.sendmail(sender, to_email, msg.as_string())
 
         print(f"[NOTIFIER] Email successfully dispatched to {to_email}")
         return True
@@ -111,6 +121,7 @@ def notify_parsing_completed(
 
 def notify_recruiter_high_match(candidate_name: str, candidate_email: str, overall_score: int, job_title: str) -> bool:
     """Alerts recruiters when a candidate meets high-match threshold for a requisition."""
+    _, _, _, _, _, recruiter = get_smtp_config()
     subject = f"[HIGH-MATCH ALERT] {candidate_name} scored {overall_score}% for {job_title}"
     html = f"""
     <html>
@@ -127,4 +138,4 @@ def notify_recruiter_high_match(candidate_name: str, candidate_email: str, overa
       </body>
     </html>
     """
-    return send_email_notification(RECRUITER_EMAIL, subject, html)
+    return send_email_notification(recruiter, subject, html)
