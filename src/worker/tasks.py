@@ -335,6 +335,27 @@ def parse_resume_task(resume_id_str: str):
         resume.processed_at = datetime.datetime.now(datetime.timezone.utc)
         resume.structured_data = extracted_json 
         db.commit()
+
+        # --- STEP D: ASYNC EMAIL NOTIFICATION DISPATCH ---
+        try:
+            from src.worker.notifier import notify_parsing_completed
+            candidate_email = None
+            candidate_name = None
+            if isinstance(extracted_json, dict):
+                candidate_email = extracted_json.get('email')
+                if not candidate_email and isinstance(extracted_json.get('contact_info'), dict):
+                    candidate_email = extracted_json['contact_info'].get('email')
+                candidate_name = extracted_json.get('full_name') or extracted_json.get('name')
+
+            notify_parsing_completed(
+                recipient_email=candidate_email or 'candidate@example.com',
+                candidate_name=candidate_name or resume.file_name,
+                resume_id=str(resume.id),
+                extracted_data=extracted_json,
+                file_name=resume.file_name
+            )
+        except Exception as notif_err:
+            print(f'[NOTIFIER_WARNING] Email notification skipped/failed: {notif_err}')
         
         print(f"--- [TASK_COMPLETED] for {resume.file_name} ---")
         return f"Successfully processed {resume.file_name}"

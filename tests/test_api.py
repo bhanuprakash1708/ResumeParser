@@ -87,3 +87,17 @@ async def test_upload_file_too_large(client: httpx.AsyncClient):
     assert response.status_code == status.HTTP_413_CONTENT_TOO_LARGE
     response_data = response.json()
     assert "File size exceeds 10MB limit" in response_data["detail"]
+
+
+async def test_email_notification_service(client: httpx.AsyncClient):
+    """
+    Test 4: Verifies the email notifier test endpoint and mock dispatch.
+    """
+    response = await client.post(
+        "/api/v1/resumes/notify/test?recipientEmail=talent@example.com"
+    )
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["status"] == "success"
+    assert data["delivered"] is True
+    assert data["recipient"] == "talent@example.com"

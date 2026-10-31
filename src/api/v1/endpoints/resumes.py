@@ -7,6 +7,7 @@ import uuid
 import json
 import time
 from datetime import datetime
+from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Body, status
 from sqlalchemy.orm import Session
 from src.db.session import get_db
@@ -191,6 +192,47 @@ async def upload_resume(
         "estimatedProcessingTime": 30 
     }
 
+# --- EMAIL NOTIFICATION SCHEMAS ---
+class EmailNotificationRequest(BaseModel):
+    recipientEmail: Optional[str] = None
+    candidateName: Optional[str] = None
+    notificationType: str = "scorecard"  # "scorecard", "acknowledgement", "alert"
+
+class EmailNotificationResponse(BaseModel):
+    status: str
+    message: str
+    recipient: str
+    delivered: bool
+    mockMode: bool
+
+
+@router.post(
+    "/notify/test",
+    response_model=EmailNotificationResponse,
+    summary="Test the email notifier service"
+)
+async def test_email_notifier(
+    recipientEmail: Optional[str] = "test-candidate@example.com"
+):
+    from src.worker.notifier import notify_parsing_completed, is_mock_mode
+
+    delivered = notify_parsing_completed(
+        recipient_email=recipientEmail or "test-candidate@example.com",
+        candidate_name="Alex Mercer",
+        quality_score=94,
+        resume_id="test-demo-123",
+        file_name="Alex_Mercer_DevOps_Resume.pdf"
+    )
+    mock = is_mock_mode()
+    return EmailNotificationResponse(
+        status="success" if delivered else "failed",
+        message=f"Test notification dispatched successfully{' (simulated mock mode)' if mock else ' via live SMTP'}.",
+        recipient=recipientEmail or "test-candidate@example.com",
+        delivered=delivered,
+        mockMode=mock
+    )
+
+
 @router.get("/{id}", response_model=ResumeDataResponse)
 async def get_parsed_resume(
     id: str,
@@ -356,3 +398,66 @@ async def match_resume_to_job(
     except Exception as e:
         print(f"[MATCH_FAILED] Error during matching: {e}")
         raise HTTPException(status_code=500, detail=f"AI matching failed: {e}")
+
+
+@router.post(
+    "/{id}/notify",
+    response_model=EmailNotificationResponse,
+    summary="Dispatch an email notification for a parsed resume"
+)
+async def dispatch_resume_email_notification(
+    id: str,
+    payload: Optional[EmailNotificationRequest] = None,
+    db: Session = Depends(get_db)
+):
+    try:
+        resume_uuid = uuid.UUID(id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid resume ID format.")
+
+    resume = db.query(Resume).filter(Resume.id == resume_uuid).first()
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    from src.worker.notifier import notify_parsing_completed, notify_candidate_received, notify_recruiter_high_match, is_mock_mode
+
+    extracted = resume.structured_data if isinstance(resume.structured_data, dict) else {}
+    detected_email = extracted.get("email")
+    if not detected_email and isinstance(extracted.get("contact_info"), dict):
+        detected_email = extracted["contact_info"].get("email")
+
+    detected_name = extracted.get("full_name") or extracted.get("name")
+
+    req = payload or EmailNotificationRequest()
+    recipient = req.recipientEmail or detected_email or "applicant@example.com"
+    name = req.candidateName or detected_name or resume.file_name
+
+    delivered = False
+    if req.notificationType == "acknowledgement":
+        delivered = notify_candidate_received(recipient, name, resume.file_name)
+    elif req.notificationType == "alert":
+        delivered = notify_recruiter_high_match(name, recipient, 92, "Target Requisition")
+    else:
+        quality_score = 88
+        if isinstance(extracted, dict) and "score" in extracted:
+            try:
+                quality_score = int(extracted.get("score", 88))
+            except Exception:
+                quality_score = 88
+        delivered = notify_parsing_completed(
+            recipient_email=recipient,
+            candidate_name=name,
+            quality_score=quality_score,
+            resume_id=str(resume.id),
+            extracted_data=extracted,
+            file_name=resume.file_name
+        )
+
+    mock = is_mock_mode()
+    return EmailNotificationResponse(
+        status="success" if delivered else "failed",
+        message=f"Notification ({req.notificationType}) processed{' in simulation/mock mode' if mock else ' via SMTP'}.",
+        recipient=recipient,
+        delivered=delivered,
+        mockMode=mock
+    )

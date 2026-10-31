@@ -794,3 +794,92 @@ function showToast(message, type = 'info') {
     setTimeout(() => toast.remove(), 300);
   }, 4000);
 }
+
+
+// --- EMAIL NOTIFIER INTEGRATION ---
+function openEmailNotificationModal() {
+  if (!currentResumeId) {
+    showToast('Please parse a resume first to dispatch notifications.', 'warning');
+    return;
+  }
+  const modal = document.getElementById('emailModal');
+  const emailInput = document.getElementById('modalRecipientEmail');
+  
+  if (currentResumeData && currentResumeData.extractedData) {
+    const extracted = currentResumeData.extractedData;
+    const detected = extracted.email || (extracted.contact_info && extracted.contact_info.email);
+    if (detected) {
+      emailInput.value = detected;
+    }
+  }
+  modal.style.display = 'flex';
+}
+
+function closeEmailModal() {
+  const modal = document.getElementById('emailModal');
+  modal.style.display = 'none';
+}
+
+async function submitEmailNotification() {
+  if (!currentResumeId) {
+    showToast('No active resume selected.', 'error');
+    return;
+  }
+  const email = document.getElementById('modalRecipientEmail').value.trim();
+  const notifType = document.getElementById('modalNotifType').value;
+  const sendBtn = document.getElementById('modalSendBtn');
+
+  if (!email) {
+    showToast('Please enter a recipient email address.', 'warning');
+    return;
+  }
+
+  sendBtn.disabled = true;
+  sendBtn.innerHTML = 'Sending...';
+
+  try {
+    const res = await fetch(`/api/v1/resumes/${currentResumeId}/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipientEmail: email,
+        notificationType: notifType
+      })
+    });
+    const result = await res.json();
+    if (res.ok && result.status === 'success') {
+      showToast(`Notification dispatched successfully to ${result.recipient}!`, 'success');
+      closeEmailModal();
+    } else {
+      showToast(`Notification error: ${result.detail || result.message || 'Failed to dispatch'}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Network error sending notification: ${err.message}`, 'error');
+  } finally {
+    sendBtn.disabled = false;
+    sendBtn.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+      Send Notification
+    `;
+  }
+}
+
+async function testEmailService() {
+  const testEmail = prompt('Enter recipient email to send test notification:', 'devops-evaluator@example.com');
+  if (!testEmail) return;
+
+  showToast(`Dispatching test notification to ${testEmail}...`, 'info');
+  try {
+    const res = await fetch(`/api/v1/resumes/notify/test?recipientEmail=${encodeURIComponent(testEmail)}`, {
+      method: 'POST'
+    });
+    const result = await res.json();
+    if (res.ok && result.status === 'success') {
+      showToast(`Notification test verified: ${result.message}`, 'success');
+    } else {
+      showToast(`Notifier test failed: ${result.detail || 'Service error'}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Failed to trigger test notifier: ${err.message}`, 'error');
+  }
+}
