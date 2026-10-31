@@ -490,6 +490,35 @@
     </div>
   </div>
 
-  <script src="/static/app.js"></script>
+    <script>
+    // Inline fallback ensuring immediate readiness even if external script is cached
+    async function testEmailService() {
+      const testEmail = prompt('Enter recipient email to send test notification:', 'devops-evaluator@example.com');
+      if (!testEmail) return;
+      if (typeof showToast === 'function') {
+        showToast('Dispatching test notification to ' + testEmail + '...', 'info');
+      } else {
+        alert('Dispatching test notification to ' + testEmail + '...');
+      }
+      try {
+        const res = await fetch('/api/v1/resumes/notify/test?recipientEmail=' + encodeURIComponent(testEmail), {
+          method: 'POST'
+        });
+        const result = await res.json();
+        if (res.ok && result.status === 'success') {
+          if (typeof showToast === 'function') {
+            showToast('Notification test verified: ' + result.message, 'success');
+          } else {
+            alert('Notification test verified: ' + result.message);
+          }
+        } else {
+          alert('Notifier test failed: ' + (result.detail || 'Service error'));
+        }
+      } catch (err) {
+        alert('Failed to trigger test notifier: ' + err.message);
+      }
+    }
+  </script>
+  <script src="/static/app.js?v=2.1"></script>
 </body>
 </html>

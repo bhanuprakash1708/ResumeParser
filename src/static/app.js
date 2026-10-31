@@ -883,3 +883,10 @@ async function testEmailService() {
     showToast(`Failed to trigger test notifier: ${err.message}`, 'error');
   }
 }
+
+
+// Explicit global exposure for UI event handlers
+window.testEmailService = testEmailService;
+window.openEmailNotificationModal = openEmailNotificationModal;
+window.closeEmailModal = closeEmailModal;
+window.submitEmailNotification = submitEmailNotification;
