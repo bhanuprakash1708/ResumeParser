@@ -51,7 +51,7 @@ try:
         genai.configure(api_key=settings.GEMINI_API_KEY)
         
         gemini_match_model = genai.GenerativeModel(
-            'gemini-2.5-pro',
+            'gemini-2.5-flash',
             generation_config=genai_types.GenerationConfig(
                 response_mime_type="application/json",
                 response_schema=MatchResponse, 

@@ -39,7 +39,7 @@ try:
         # --- THIS IS THE FIX ---
         # We are removing the complex generation_config that was
         # crashing the app. We will just initialize the model.
-        gemini_model = genai.GenerativeModel('gemini-2.5-pro')
+        gemini_model = genai.GenerativeModel('gemini-2.5-flash')
         # ---------------------------------
         
         print("--- Gemini PRO model configured successfully ---")
@@ -342,10 +342,21 @@ def parse_resume_task(resume_id_str: str):
             candidate_email = None
             candidate_name = None
             if isinstance(extracted_json, dict):
-                candidate_email = extracted_json.get('email')
+                p_info = extracted_json.get('personalInfo', {})
+                if isinstance(p_info, dict):
+                    contact = p_info.get('contact', {})
+                    if isinstance(contact, dict):
+                        candidate_email = contact.get('email')
+                    name_obj = p_info.get('name', {})
+                    if isinstance(name_obj, dict):
+                        candidate_name = name_obj.get('full') or f"{name_obj.get('first', '')} {name_obj.get('last', '')}".strip()
+
+                if not candidate_email:
+                    candidate_email = extracted_json.get('email')
                 if not candidate_email and isinstance(extracted_json.get('contact_info'), dict):
                     candidate_email = extracted_json['contact_info'].get('email')
-                candidate_name = extracted_json.get('full_name') or extracted_json.get('name')
+                if not candidate_name:
+                    candidate_name = extracted_json.get('full_name') or extracted_json.get('name')
 
             notify_parsing_completed(
                 recipient_email=candidate_email or 'candidate@example.com',
