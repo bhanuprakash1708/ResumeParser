@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ResumeAI Pro — Intelligent Resume Parsing & Job Matching Studio</title>
+  <meta name="description" content="State-of-the-art AI resume parsing, multi-format OCR extraction, and intelligent job description matching powered by Google Gemini and FastAPI.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <!-- Ambient background glow elements -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+  <div class="ambient-glow glow-3"></div>
+
+  <!-- Main Application Wrapper -->
+  <div class="app-layout">
+    <!-- Top Navigation Header -->
+    <header class="app-header" id="appHeader">
+      <div class="header-container">
+        <div class="brand-group">
+          <div class="logo-mark">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M10 9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="brand-details">
+            <span class="brand-name">ResumeAI <span class="gradient-text">Studio</span></span>
+            <span class="brand-tagline">FastAPI &bull; Gemini 2.5 Pro &bull; Celery OCR</span>
+          </div>
+        </div>
+
+        <nav class="nav-tabs" id="mainNav">
+          <button class="nav-tab active" id="tabParserBtn" onclick="switchTab('parser')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+            Resume Parser
+          </button>
+          <button class="nav-tab" id="tabMatcherBtn" onclick="switchTab('matcher')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline><path d="M18 13l-4 4-2-2"></path></svg>
+            Job Matcher Studio
+            <span class="badge-pill">AI</span>
+          </button>
+          <a href="/docs" target="_blank" class="nav-tab ext-link" id="apiDocsLink">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+            Swagger Docs
+          </a>
+        </nav>
+
+        <div class="status-indicator-box" id="systemStatusBadge">
+          <span class="pulse-dot"></span>
+          <span class="status-text" id="statusLabel">Checking API...</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-content" id="mainContent">
+
+      <!-- ================= SECTION 1: RESUME PARSER ================= -->
+      <section class="tab-pane active" id="parserPane">
+        
+        <!-- Hero Header -->
+        <div class="hero-section">
+          <div class="hero-badge">⚡ Asynchronous Multi-Format AI Pipeline</div>
+          <h1 class="hero-title">Parse Resumes Into <span class="gradient-text">Structured Intelligence</span></h1>
+          <p class="hero-subtitle">Upload PDF, DOCX, TXT, or scanned images. Our pipeline extracts text with OCR, cleans data, and generates deep AI insights in real-time.</p>
+        </div>
+
+        <div class="parser-grid">
+          <!-- Left Column: Upload & Control Panel -->
+          <div class="panel upload-panel glass-card">
+            <div class="panel-header">
+              <h2 class="panel-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                Upload Document
+              </h2>
+              <span class="badge-hint">Max 10MB</span>
+            </div>
+
+            <!-- Drag and drop zone -->
+            <div class="drop-zone" id="dropZone">
+              <input type="file" id="resumeFileInput" accept=".pdf,.docx,.doc,.txt,.png,.jpg,.jpeg" class="file-input-hidden">
+              <div class="drop-zone-content">
+                <div class="upload-icon-bubble">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path>
+                    <path d="M12 12v9"></path>
+                    <path d="m16 16-4-4-4 4"></path>
+                  </svg>
+                </div>
+                <p class="drop-primary-text">Drag & drop your resume here, or <span class="browse-link" id="browseTrigger">browse file</span></p>
+                <p class="drop-secondary-text">Supports PDF, Scanned PDF (OCR), DOCX, TXT, JPG, PNG</p>
+              </div>
+
+              <!-- Selected File Preview Bar (hidden by default) -->
+              <div class="selected-file-card" id="selectedFileCard" style="display: none;">
+                <div class="file-icon-square">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+                </div>
+                <div class="file-info-col">
+                  <span class="file-name" id="previewFileName">filename.pdf</span>
+                  <span class="file-meta" id="previewFileMeta">0 KB &bull; PDF</span>
+                </div>
+                <button type="button" class="clear-file-btn" id="clearFileBtn" title="Remove file">✕</button>
+              </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="upload-actions">
+              <button class="btn btn-primary" id="uploadBtn" disabled onclick="handleUpload()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+                Parse Resume Now
+              </button>
+              <button class="btn btn-secondary" id="sampleBtn" onclick="loadSampleResume()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
+                Load Sample
+              </button>
+            </div>
+
+            <!-- Live Processing Tracker Card -->
+            <div class="tracker-card" id="trackerCard" style="display: none;">
+              <div class="tracker-header">
+                <span class="tracker-title">Processing Pipeline</span>
+                <span class="status-pill status-pending" id="trackerStatusBadge">Pending</span>
+              </div>
+              <div class="pipeline-steps">
+                <div class="step-item" id="stepUpload">
+                  <div class="step-dot"></div>
+                  <div class="step-text">File Ingestion & SHA-256 Hash</div>
+                </div>
+                <div class="step-item" id="stepExtract">
+                  <div class="step-dot"></div>
+                  <div class="step-text">Text & OCR Extraction (Tesseract / pdfplumber)</div>
+                </div>
+                <div class="step-item" id="stepAI">
+                  <div class="step-dot"></div>
+                  <div class="step-text">Gemini Pro Structured JSON Generation</div>
+                </div>
+                <div class="step-item" id="stepDone">
+                  <div class="step-dot"></div>
+                  <div class="step-text">Database Storage & Analysis Complete</div>
+                </div>
+              </div>
+              <div class="tracker-timer" id="trackerTimer">Elapsed: 0s</div>
+            </div>
+
+            <!-- Recent Resumes / History list -->
+            <div class="history-card" id="historyCard">
+              <div class="history-title">Session History</div>
+              <div class="history-list" id="historyList">
+                <div class="history-empty">No resumes processed in this session yet.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Results & Analytics Showcase -->
+          <div class="panel results-panel glass-card" id="resultsPanel">
+            <div class="empty-state" id="resultsEmptyState">
+              <div class="empty-icon-wrapper">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <line x1="10" y1="9" x2="8" y2="9"></line>
+                </svg>
+              </div>
+              <h3 class="empty-title">No Resume Loaded</h3>
+              <p class="empty-desc">Upload a resume or click "Load Sample" to see extracted candidate intelligence, AI scores, and interactive breakdowns.</p>
+            </div>
+
+            <!-- Filled Content View (Hidden Initially) -->
+            <div class="results-content" id="resultsContent" style="display: none;">
+              <!-- Header Bar -->
+              <div class="resume-hero">
+                <div class="candidate-primary">
+                  <h2 class="candidate-name" id="candidateName">Jane Doe</h2>
+                  <p class="candidate-role" id="candidateTitle">Senior Full Stack Engineer</p>
+                  <div class="candidate-contact-chips" id="contactChips">
+                    <!-- Dynamic contact items -->
+                  </div>
+                </div>
+                <div class="hero-action-buttons">
+                  <button class="btn btn-outline" id="sendToMatcherBtn" onclick="sendToJobMatcher()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+                    Match with Job
+                  </button>
+                  <button class="btn btn-outline" id="toggleJsonBtn" onclick="toggleJsonView()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                    JSON
+                  </button>
+                </div>
+              </div>
+
+              <!-- AI Analytics Dashboard -->
+              <div class="ai-metrics-grid" id="aiMetricsSection">
+                <div class="metric-card score-metric">
+                  <div class="gauge-wrapper">
+                    <svg class="score-dial" viewBox="0 0 36 36">
+                      <path class="dial-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                      <path class="dial-fill" id="qualityDial" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                      <text x="18" y="20.35" class="dial-value" id="qualityValue">--</text>
+                    </svg>
+                  </div>
+                  <div class="metric-info">
+                    <span class="metric-label">Quality Score</span>
+                    <span class="metric-sub">Completeness & structure</span>
+                  </div>
+                </div>
+
+                <div class="metric-card score-metric">
+                  <div class="gauge-wrapper">
+                    <svg class="score-dial" viewBox="0 0 36 36">
+                      <path class="dial-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                      <path class="dial-fill dial-purple" id="completenessDial" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                      <text x="18" y="20.35" class="dial-value" id="completenessValue">--</text>
+                    </svg>
+                  </div>
+                  <div class="metric-info">
+                    <span class="metric-label">Completeness</span>
+                    <span class="metric-sub">Key sections present</span>
+                  </div>
+                </div>
+
+                <div class="metric-card industry-metric">
+                  <span class="metric-label">Industry Fit</span>
+                  <div class="industry-bars" id="industryBars">
+                    <!-- Dynamic Bars -->
+                  </div>
+                </div>
+              </div>
+
+              <!-- AI Career Progression & Suggestions -->
+              <div class="ai-insight-box" id="aiCareerBox" style="display: none;">
+                <div class="insight-icon">💡</div>
+                <div class="insight-body">
+                  <div class="insight-title">AI Career Progression Analysis</div>
+                  <div class="insight-text" id="aiCareerText">Analysis goes here...</div>
+                </div>
+              </div>
+
+              <!-- Executive Summary -->
+              <div class="section-card" id="summaryCard">
+                <h3 class="section-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+                  Executive Summary
+                </h3>
+                <p class="summary-text" id="summaryText">Candidate summary will appear here.</p>
+              </div>
+
+              <!-- Skills Grid -->
+              <div class="section-card" id="skillsCard">
+                <h3 class="section-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                  Skills & Proficiencies
+                </h3>
+                <div class="skills-categories-grid" id="skillsContainer">
+                  <!-- Dynamic Categories -->
+                </div>
+              </div>
+
+              <!-- Experience Timeline -->
+              <div class="section-card" id="experienceCard">
+                <h3 class="section-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+                  Work Experience
+                </h3>
+                <div class="experience-timeline" id="experienceContainer">
+                  <!-- Dynamic Jobs -->
+                </div>
+              </div>
+
+              <!-- Education -->
+              <div class="section-card" id="educationCard">
+                <h3 class="section-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
+                  Education
+                </h3>
+                <div class="education-grid" id="educationContainer">
+                  <!-- Dynamic Education -->
+                </div>
+              </div>
+
+              <!-- Raw JSON Modal / Container -->
+              <div class="raw-json-card" id="rawJsonCard" style="display: none;">
+                <div class="json-header">
+                  <span>Structured JSON Output</span>
+                  <div class="json-actions">
+                    <button class="btn btn-sm" onclick="copyJsonOutput()">Copy JSON</button>
+                    <button class="btn btn-sm" onclick="downloadJsonOutput()">Download .json</button>
+                  </div>
+                </div>
+                <pre class="json-viewer"><code id="rawJsonCode"></code></pre>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ================= SECTION 2: AI JOB MATCHER ================= -->
+      <section class="tab-pane" id="matcherPane" style="display: none;">
+        <div class="hero-section">
+          <div class="hero-badge">🎯 Semantic AI Compatibility Engine</div>
+          <h1 class="hero-title">Resume & Job <span class="gradient-text">Matching Studio</span></h1>
+          <p class="hero-subtitle">Compare a processed resume against any target job description. Google Gemini performs quantitative scoring, gap analysis, and tailored career fit evaluation.</p>
+        </div>
+
+        <div class="matcher-grid">
+          <!-- Left: Input Form -->
+          <div class="panel glass-card">
+            <div class="panel-header">
+              <h2 class="panel-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                Target Job Description
+              </h2>
+              <button class="btn btn-sm btn-outline" onclick="loadSampleJobDesc()">Load Sample Job</button>
+            </div>
+
+            <div class="form-group">
+              <label for="matcherResumeSelect" class="form-label">Select Processed Resume</label>
+              <select id="matcherResumeSelect" class="form-select">
+                <option value="">-- Choose a parsed resume --</option>
+              </select>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group col-6">
+                <label for="jobTitleInput" class="form-label">Job Title</label>
+                <input type="text" id="jobTitleInput" class="form-input" placeholder="e.g. Senior Backend Engineer">
+              </div>
+              <div class="form-group col-6">
+                <label for="jobCompanyInput" class="form-label">Company</label>
+                <input type="text" id="jobCompanyInput" class="form-input" placeholder="e.g. Acme Cloud Corp">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group col-6">
+                <label for="jobExpInput" class="form-label">Required Experience</label>
+                <input type="text" id="jobExpInput" class="form-input" placeholder="e.g. 5+ years">
+              </div>
+              <div class="form-group col-6">
+                <label for="jobLocationInput" class="form-label">Location / Remote</label>
+                <input type="text" id="jobLocationInput" class="form-input" placeholder="e.g. Remote (US)">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="jobDescTextarea" class="form-label">Full Job Description & Requirements</label>
+              <textarea id="jobDescTextarea" class="form-textarea" rows="8" placeholder="Paste the job requirements, responsibilities, technical stack, qualifications..."></textarea>
+            </div>
+
+            <button class="btn btn-primary btn-block" id="runMatchBtn" onclick="runJobMatching()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline><path d="M18 13l-4 4-2-2"></path></svg>
+              Run AI Match Analysis
+            </button>
+          </div>
+
+          <!-- Right: Match Evaluation Results -->
+          <div class="panel glass-card match-results-panel" id="matchResultsPanel">
+            <div class="empty-state" id="matchEmptyState">
+              <div class="empty-icon-wrapper">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+              </div>
+              <h3 class="empty-title">Ready for AI Matching</h3>
+              <p class="empty-desc">Select a resume and enter job details to generate an in-depth score, breakdown across 5 categories, and gap analysis.</p>
+            </div>
+
+            <!-- Match Results View -->
+            <div class="match-results-content" id="matchResultsContent" style="display: none;">
+              <!-- Overall Score Banner -->
+              <div class="match-overall-card">
+                <div class="overall-circle-box">
+                  <div class="overall-number" id="matchOverallScore">88</div>
+                  <div class="overall-label">/ 100</div>
+                </div>
+                <div class="overall-meta">
+                  <span class="match-badge" id="matchBadge">Strong Match</span>
+                  <h3 class="match-title" id="matchHeaderTitle">Candidate vs Role Match</h3>
+                  <p class="match-summary" id="matchExplanation">Candidate demonstrates exceptional alignment with the technical requirements.</p>
+                </div>
+              </div>
+
+              <!-- Category Score Breakdown -->
+              <div class="section-card">
+                <h4 class="section-title">Category Breakdown</h4>
+                <div class="category-bars-grid" id="categoryBarsContainer">
+                  <!-- Dynamic Category Bars -->
+                </div>
+              </div>
+
+              <!-- Strengths & Gaps -->
+              <div class="insights-columns-grid">
+                <div class="insight-column strengths-col">
+                  <h4 class="col-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    Top Candidate Strengths
+                  </h4>
+                  <ul class="insight-list" id="strengthsList"></ul>
+                </div>
+                <div class="insight-column gaps-col">
+                  <h4 class="col-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="6"></line></svg>
+                    Gap Analysis & Recommendations
+                  </h4>
+                  <ul class="insight-list" id="gapsList"></ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Global Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-container">
+        <span>AI-Powered Resume Parser Studio &bull; FastAPI + PostgreSQL + Redis + Celery + Google Gemini Pro</span>
+        <div class="footer-links">
+          <a href="/docs" target="_blank">Swagger OpenAPI</a>
+          <a href="/health" target="_blank">Health Check</a>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -35,3 +35,6 @@ htmlcov/
 *.log
 logs/
 
+*.db
+uploads/
+

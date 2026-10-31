@@ -1,23 +1,34 @@
-# Location: /src/main.py (Updated)
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from src.db.session import engine
 from src.db import models
-from src.api.v1.api import api_router # We will create this file next
+from src.api.v1.api import api_router
 
-# This command creates the database tables if they don't exist
-# It's okay for a hackathon. In production, we'd use Alembic.
-models.Base.metadata.create_all(bind=engine)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("--- API is starting up! ---")
+    try:
+        models.Base.metadata.create_all(bind=engine)
+        print("--- Database tables initialized ---")
+    except Exception as e:
+        print(f"Warning: could not connect to database on startup: {e}")
+    yield
 
 app = FastAPI(
     title="AI-Powered Resume Parser",
     version="1.0",
-    description="Hackathon project for parsing resumes with AI."
+    description="Hackathon project for parsing resumes with AI.",
+    lifespan=lifespan
 )
 
-@app.on_event("startup")
-async def startup_event():
-    # This is a good place for any startup logic
-    print("--- API is starting up! ---")
+import os
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+# Mount static files for the frontend dashboard
+static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # --- Health Check Endpoint ---
 @app.get("/health", tags=["General"])
@@ -34,6 +45,9 @@ app.include_router(api_router, prefix="/api/v1")
 @app.get("/", tags=["General"])
 async def root():
     """
-    Root endpoint.
+    Root endpoint serving the interactive ResumeAI Studio frontend.
     """
+    index_path = os.path.join(static_dir, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
     return {"message": "Welcome to the AI Resume Parser API"}

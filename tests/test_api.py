@@ -7,15 +7,20 @@ import io
 from fastapi import status
 import time
 
-# ... (pytestmark and BASE_URL are unchanged) ...
-pytestmark = pytest.mark.asyncio
-BASE_URL = "http://api:8000"
+import os
+from src.main import app
 
-# ... (client fixture is unchanged) ...
+pytestmark = pytest.mark.asyncio
+BASE_URL = os.getenv("TEST_BASE_URL", "http://test")
+
 @pytest_asyncio.fixture(scope="function")
 async def client():
-    async with httpx.AsyncClient(base_url=BASE_URL) as client:
-        yield client
+    if os.getenv("TEST_BASE_URL"):
+        async with httpx.AsyncClient(base_url=BASE_URL) as client:
+            yield client
+    else:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url=BASE_URL) as client:
+            yield client
 
 # ... (test_health_check is unchanged and passing) ...
 async def test_health_check(client: httpx.AsyncClient):
@@ -58,7 +63,7 @@ async def test_upload_resume(client: httpx.AsyncClient, mocker):
     
     # 5. Check if our mock Celery task was called
     mock_parse_task.delay.assert_called_once()
-    mock_parse_task.assert_called_with(response_data["id"])
+    mock_parse_task.delay.assert_called_with(str(response_data["id"]))
 
 
 # ... (test_upload_file_too_large is unchanged and passing) ...
@@ -74,7 +79,7 @@ async def test_upload_file_too_large(client: httpx.AsyncClient):
         files={"file": ("large_file.pdf", fake_large_file, "application/pdf")}
     )
     
-    assert response.status_code == status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+    assert response.status_code == status.HTTP_413_CONTENT_TOO_LARGE
     
     response_data = response.json()
     assert "File size exceeds 10MB limit" in response_data["detail"]

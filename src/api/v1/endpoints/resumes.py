@@ -42,7 +42,7 @@ from src.api.v1.schemas import (
 
 router = APIRouter()
 
-UPLOAD_DIR = "/app/uploads"
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", os.path.join(os.getcwd(), "uploads"))
 MAX_FILE_SIZE = 10 * 1024 * 1024 # 10 MB
 
 try:
@@ -138,10 +138,16 @@ async def upload_resume(
     if not file:
         raise HTTPException(status_code=400, detail="No file uploaded")
         
-    if file.size > MAX_FILE_SIZE: 
+    file_size = getattr(file, "size", None)
+    if file_size is None:
+        file.file.seek(0, os.SEEK_END)
+        file_size = file.file.tell()
+        file.file.seek(0)
+
+    if file_size > MAX_FILE_SIZE: 
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-            detail=f"File size exceeds 10MB limit. File size: {file.size / 1024 / 1024:.2f} MB"
+            detail=f"File size exceeds 10MB limit. File size: {file_size / 1024 / 1024:.2f} MB"
         )
 
     file_hash = get_file_hash(file.file)
@@ -156,7 +162,7 @@ async def upload_resume(
     new_resume = Resume(
         id=uuid.uuid4(),
         file_name=file.filename,
-        file_size=file.size, 
+        file_size=file_size, 
         file_type=file.content_type,
         file_hash=file_hash,
         processing_status='pending'

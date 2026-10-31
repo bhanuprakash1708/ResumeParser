@@ -16,9 +16,13 @@ class Settings(BaseSettings):
     POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "db")
     POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
 
+    DATABASE_URL_OVERRIDE: str = os.getenv("DATABASE_URL", "")
+
     # Construct the database URL
     @property
     def DATABASE_URL(self) -> str:
+        if self.DATABASE_URL_OVERRIDE.strip():
+            return self.DATABASE_URL_OVERRIDE.strip()
         return (
             f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
             f"{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
