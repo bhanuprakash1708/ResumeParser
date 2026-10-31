@@ -16,22 +16,18 @@ class Settings(BaseSettings):
     POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "db")
     POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
 
-    DATABASE_URL_OVERRIDE: str = os.getenv("DATABASE_URL", "")
+    DATABASE_URL_OVERRIDE: str = os.getenv("DATABASE_URL", "sqlite:///./resume_parser.db")
 
     # Construct the database URL
     @property
     def DATABASE_URL(self) -> str:
-        if self.DATABASE_URL_OVERRIDE.strip():
+        if self.DATABASE_URL_OVERRIDE and self.DATABASE_URL_OVERRIDE.strip():
             return self.DATABASE_URL_OVERRIDE.strip()
-        return (
-            f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
-            f"{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-        )
+        return "sqlite:///./resume_parser.db"
 
     CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
     CELERY_RESULT_BACKEND: str = os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
 
-    # --- THIS IS THE LINE THAT WAS MISSING ---
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
 
 
